@@ -3,7 +3,7 @@ services:
     build: .
     container_name: zimage-turbo
     ports:
-      - "8000:8000"
+      - "8189:8189"
     environment:
       COMFYUI_URL: http://host.docker.internal:8188
     extra_hosts:

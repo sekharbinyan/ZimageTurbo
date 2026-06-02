@@ -19,7 +19,7 @@ Web interface for the Z Image Turbo ComfyUI workflow. Upload an image, enter a p
 docker compose up --build
 ```
 
-3. Open [http://localhost:8000](http://localhost:8000)
+3. Open [http://localhost:8189](http://localhost:8189)
 
 The container connects to ComfyUI on the host via `http://host.docker.internal:8188`.
 
@@ -34,13 +34,13 @@ COMFYUI_URL=http://192.168.1.10:8188 docker compose up --build
 ```bash
 pip install -r requirements.txt
 set COMFYUI_URL=http://127.0.0.1:8188
-uvicorn app:app --reload --port 8000
+uvicorn app:app --reload --port 8189
 ```
 
 ## API
 
 ```bash
-curl -X POST "http://localhost:8000/generate" ^
+curl -X POST "http://localhost:8189/generate" ^
   -F "prompt=Your prompt here" ^
   -F "image=@input.png" ^
   -F "steps=8" ^
