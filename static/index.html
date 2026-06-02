@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Z Image Turbo</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Z Image Turbo</h1>
+      <p>Upload an image, write a prompt, and generate with ComfyUI.</p>
+    </header>
+
+    <form id="generate-form" class="panel">
+      <section class="field">
+        <label for="image">Input image (optional for text-to-image)</label>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="image" name="image" accept="image/*" />
+          <p>Drop an image here or click to browse</p>
+          <img id="preview" alt="Preview" hidden />
+        </div>
+      </section>
+
+      <section class="field">
+        <label for="prompt">Prompt</label>
+        <textarea
+          id="prompt"
+          name="prompt"
+          rows="4"
+          placeholder="Describe what you want to generate..."
+          required
+        >Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.</textarea>
+      </section>
+
+      <section class="grid">
+        <div class="field">
+          <label for="steps">Steps</label>
+          <input type="number" id="steps" name="steps" value="8" min="1" max="50" />
+        </div>
+        <div class="field">
+          <label for="cfg">CFG</label>
+          <input type="number" id="cfg" name="cfg" value="1" min="0" max="20" step="0.1" />
+        </div>
+        <div class="field">
+          <label for="denoise">Denoise</label>
+          <input type="number" id="denoise" name="denoise" value="0.75" min="0.01" max="1" step="0.01" />
+        </div>
+        <div class="field">
+          <label for="seed">Seed (optional)</label>
+          <input type="number" id="seed" name="seed" placeholder="Random" />
+        </div>
+      </section>
+
+      <button type="submit" id="submit-btn">Generate</button>
+      <p id="status" class="status" aria-live="polite"></p>
+    </form>
+
+    <section class="panel result-panel">
+      <h2>Result</h2>
+      <div id="result-empty" class="empty-state">Generated image will appear here.</div>
+      <img id="result" alt="Generated result" hidden />
+      <p id="seed-info" class="seed-info" hidden></p>
+      <a id="download-link" download="z-image-turbo.png" hidden>Download PNG</a>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

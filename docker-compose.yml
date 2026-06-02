@@ -1,0 +1,11 @@
+services:
+  zimage-turbo:
+    build: .
+    container_name: zimage-turbo
+    ports:
+      - "8000:8000"
+    environment:
+      COMFYUI_URL: http://host.docker.internal:8188
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
