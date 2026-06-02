@@ -4,7 +4,7 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    COMFYUI_URL=http://host.docker.internal:8188
+    COMFYUI_URL=http://127.0.0.1:8188
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

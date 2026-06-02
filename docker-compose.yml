@@ -2,10 +2,8 @@ services:
   zimage-turbo:
     build: .
     container_name: zimage-turbo
-    ports:
-      - "8189:8189"
+    # Host network lets the UI reach ComfyUI at 127.0.0.1:8188 on the same GPU server.
+    network_mode: host
     environment:
-      COMFYUI_URL: http://host.docker.internal:8188
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      COMFYUI_URL: ${COMFYUI_URL:-http://127.0.0.1:8188}
     restart: unless-stopped

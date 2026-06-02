@@ -5,187 +5,145 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Binyan Studios — Z Image Turbo</title>
   <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=3" />
 </head>
 <body>
-  <div class="page-bg"></div>
-
   <header class="site-header">
-    <div class="brand-lockup">
-      <img src="/static/logo.svg" alt="Binyan Studios" class="brand-logo" />
+    <div class="brand">
+      <img src="/static/logo.svg" alt="" class="brand-logo" />
       <div>
-        <p class="brand-studio">Binyan Studios</p>
+        <p class="brand-label">Binyan Studios</p>
         <h1>Z Image Turbo</h1>
       </div>
     </div>
-    <div class="header-meta">
-      <span id="connection-badge" class="badge badge-checking">Checking ComfyUI…</span>
-      <p class="tagline">AI image generation powered by ComfyUI</p>
+    <div class="status-wrap">
+      <span id="connection-badge" class="badge">Checking…</span>
+      <p id="connection-detail" class="connection-detail"></p>
     </div>
   </header>
 
-  <main class="layout">
-    <section class="panel controls-panel">
-      <div class="mode-tabs" role="tablist">
-        <button type="button" class="mode-tab active" data-mode="txt2img" role="tab" aria-selected="true">Text to Image</button>
-        <button type="button" class="mode-tab" data-mode="img2img" role="tab" aria-selected="false">Image to Image</button>
+  <main class="workspace">
+    <section class="card controls">
+      <div class="mode-switch">
+        <button type="button" class="mode-btn active" data-mode="txt2img">Text to Image</button>
+        <button type="button" class="mode-btn" data-mode="img2img">Image to Image</button>
       </div>
 
       <form id="generate-form">
-        <section class="field image-field hidden" id="image-section">
-          <div class="field-header">
+        <div class="form-block hidden" id="image-block">
+          <div class="label-row">
             <label for="image">Source image</label>
-            <button type="button" id="clear-image" class="text-btn" hidden>Remove</button>
+            <button type="button" id="clear-image" class="link-btn hidden">Remove</button>
           </div>
-          <div class="dropzone" id="dropzone">
+          <label class="upload-box" id="upload-box">
             <input type="file" id="image" name="image" accept="image/*" />
-            <div class="dropzone-placeholder" id="dropzone-placeholder">
-              <span class="drop-icon">↑</span>
-              <p>Drop an image here or click to browse</p>
+            <div id="upload-placeholder">
+              <strong>Click or drop an image</strong>
+              <span>PNG, JPG, WEBP</span>
             </div>
-            <img id="preview" alt="Input preview" hidden />
-          </div>
-        </section>
+            <img id="preview" alt="Preview" class="hidden" />
+          </label>
+        </div>
 
-        <section class="field">
-          <div class="field-header">
+        <div class="form-block">
+          <div class="label-row">
             <label for="prompt">Prompt</label>
-            <select id="preset-select" class="preset-select" aria-label="Prompt presets">
-              <option value="">Presets…</option>
+            <select id="preset-select" class="select-sm">
+              <option value="">Preset…</option>
               <option value="Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.">Cinematic portrait</option>
               <option value="Futuristic city skyline at golden hour, ultra detailed, architectural photography, dramatic clouds.">Futuristic skyline</option>
               <option value="Product photo of a luxury watch on marble surface, studio lighting, shallow depth of field, commercial quality.">Product shot</option>
               <option value="Fantasy landscape with floating islands, waterfalls, ethereal mist, concept art style, vibrant colors.">Fantasy landscape</option>
-              <option value="Minimalist interior design, Scandinavian style, natural light, warm wood tones, editorial photography.">Interior design</option>
             </select>
           </div>
-          <textarea
-            id="prompt"
-            name="prompt"
-            rows="4"
-            placeholder="Describe what you want to generate…"
-            required
-          >Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.</textarea>
-        </section>
+          <textarea id="prompt" name="prompt" rows="5" required placeholder="Describe the image you want to create…">Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.</textarea>
+        </div>
 
-        <section class="field size-field" id="size-section">
+        <div class="form-block" id="size-block">
           <label>Output size</label>
-          <div class="size-row">
-            <div class="size-input">
-              <span>W</span>
-              <input type="number" id="width" name="width" value="1024" min="256" max="2048" step="64" />
-            </div>
-            <div class="size-input">
-              <span>H</span>
-              <input type="number" id="height" name="height" value="1024" min="256" max="2048" step="64" />
-            </div>
-            <div class="size-presets">
+          <div class="size-controls">
+            <label class="size-field">W<input type="number" id="width" name="width" value="1024" min="256" max="2048" step="64" /></label>
+            <label class="size-field">H<input type="number" id="height" name="height" value="1024" min="256" max="2048" step="64" /></label>
+            <div class="chip-row">
               <button type="button" class="chip" data-w="1024" data-h="1024">1:1</button>
               <button type="button" class="chip" data-w="1216" data-h="832">3:2</button>
               <button type="button" class="chip" data-w="832" data-h="1216">2:3</button>
               <button type="button" class="chip" data-w="1344" data-h="768">16:9</button>
             </div>
           </div>
-        </section>
+        </div>
 
         <details class="advanced">
-          <summary>Advanced settings</summary>
-          <div class="grid">
-            <div class="field">
-              <label for="steps">Steps</label>
-              <input type="number" id="steps" name="steps" value="8" min="1" max="50" />
-            </div>
-            <div class="field">
-              <label for="cfg">CFG</label>
-              <input type="number" id="cfg" name="cfg" value="1" min="0" max="20" step="0.1" />
-            </div>
-            <div class="field" id="denoise-field">
-              <label for="denoise">Denoise</label>
-              <input type="range" id="denoise" name="denoise" value="0.75" min="0.01" max="1" step="0.01" />
-              <span id="denoise-value" class="range-value">0.75</span>
-            </div>
-            <div class="field">
-              <label for="seed">Seed</label>
+          <summary>Advanced</summary>
+          <div class="advanced-grid">
+            <label class="field">Steps<input type="number" id="steps" name="steps" value="8" min="1" max="50" /></label>
+            <label class="field">CFG<input type="number" id="cfg" name="cfg" value="1" min="0" max="20" step="0.1" /></label>
+            <label class="field hidden" id="denoise-block">Denoise
+              <div class="range-row">
+                <input type="range" id="denoise" name="denoise" value="0.75" min="0.01" max="1" step="0.01" />
+                <span id="denoise-value">0.75</span>
+              </div>
+            </label>
+            <label class="field">Seed
               <div class="seed-row">
                 <input type="number" id="seed" name="seed" placeholder="Random" />
-                <button type="button" id="random-seed" class="icon-btn" title="Random seed">🎲</button>
-                <button type="button" id="copy-seed" class="icon-btn" title="Copy seed" hidden>📋</button>
+                <button type="button" id="random-seed" class="mini-btn">Random</button>
               </div>
-            </div>
+            </label>
           </div>
         </details>
 
-        <div class="actions">
+        <div class="action-row">
           <button type="submit" id="submit-btn" class="btn-primary">
-            <span class="btn-label">Generate</span>
-            <span class="spinner" hidden></span>
+            <span id="btn-text">Generate</span>
+            <span id="btn-spinner" class="spinner hidden"></span>
           </button>
           <button type="button" id="regenerate-btn" class="btn-secondary" disabled>Regenerate</button>
         </div>
-        <p id="status" class="status" aria-live="polite"></p>
+        <p id="status" class="form-status" aria-live="polite"></p>
       </form>
     </section>
 
-    <section class="panel result-panel">
-      <div class="panel-header">
+    <section class="card output">
+      <div class="label-row">
         <h2>Output</h2>
-        <div class="result-actions">
-          <button type="button" id="fullscreen-btn" class="text-btn" hidden>Fullscreen</button>
-          <a id="download-link" class="text-btn" download="binyan-z-image-turbo.png" hidden>Download</a>
+        <div class="output-actions">
+          <button type="button" id="copy-seed" class="link-btn hidden">Copy seed</button>
+          <a id="download-link" class="link-btn hidden" download="binyan-z-image-turbo.png">Download</a>
         </div>
       </div>
 
-      <div id="compare-view" class="compare-view hidden">
-        <figure>
-          <figcaption>Input</figcaption>
-          <img id="compare-input" alt="Input" />
-        </figure>
-        <figure>
-          <figcaption>Output</figcaption>
-          <img id="compare-output" alt="Output" />
-        </figure>
+      <div id="output-empty" class="output-empty">
+        <img src="/static/logo.svg" alt="" />
+        <p>Your result will show here</p>
+        <small>First generation may take longer while ComfyUI loads models</small>
       </div>
 
-      <div id="result-view">
-        <div id="result-empty" class="empty-state">
-          <img src="/static/logo.svg" alt="" class="empty-logo" />
-          <p>Your generated image will appear here.</p>
-          <span>Powered by Binyan Studios</span>
+      <div id="output-loading" class="output-loading hidden">
+        <div class="spinner large"></div>
+        <p>Generating on GPU server…</p>
+        <span id="elapsed">0s</span>
+      </div>
+
+      <figure id="output-result" class="output-result hidden">
+        <img id="result-image" alt="Generated result" />
+        <figcaption id="result-meta"></figcaption>
+      </figure>
+
+      <div id="history-block" class="history-block hidden">
+        <div class="label-row">
+          <h3>Recent</h3>
+          <button type="button" id="clear-history" class="link-btn">Clear</button>
         </div>
-        <img id="result" alt="Generated result" hidden />
-      </div>
-
-      <div id="meta-bar" class="meta-bar" hidden>
-        <span id="seed-info"></span>
-        <span id="mode-info"></span>
-        <span id="time-info"></span>
-      </div>
-    </section>
-
-    <section class="panel history-panel">
-      <div class="panel-header">
-        <h2>Session history</h2>
-        <button type="button" id="clear-history" class="text-btn">Clear</button>
-      </div>
-      <p class="history-hint">Recent generations from this browser session.</p>
-      <div id="history-grid" class="history-grid">
-        <p class="history-empty">No generations yet.</p>
+        <div id="history-list" class="history-list"></div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>© 2026 <strong>Binyan Studios</strong> · Z Image Turbo · Built on ComfyUI</p>
+    <p>© 2026 <strong>Binyan Studios</strong> · Z Image Turbo</p>
   </footer>
 
-  <dialog id="fullscreen-dialog">
-    <button type="button" id="close-fullscreen" class="dialog-close" aria-label="Close">×</button>
-    <img id="fullscreen-image" alt="Fullscreen result" />
-  </dialog>
-
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

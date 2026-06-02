@@ -3,10 +3,13 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from comfy_client import COMFYUI_URL, generate_image
+from comfy_client import check_comfyui, generate_image, get_comfyui_url
+
+BUILD_VERSION = "2026-06-02-remote-1"
 
 BRAND = {
     "studio": "Binyan Studios",
@@ -17,29 +20,48 @@ BRAND = {
 app = FastAPI(title=f"{BRAND['studio']} — {BRAND['product']}")
 STATIC_DIR = Path(__file__).parent / "static"
 
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path == "/" or path.startswith("/static/") or path == "/health":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        return response
+
+
+app.add_middleware(NoCacheMiddleware)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.on_event("startup")
+async def startup():
+    url = get_comfyui_url()
+    ok, error = check_comfyui()
+    if ok:
+        print(f"[startup] ComfyUI reachable at {url}")
+    else:
+        print(f"[startup] WARNING: ComfyUI not reachable at {url}: {error}")
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/health")
 async def health():
-    comfyui_ok = False
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{os.getenv('COMFYUI_URL', COMFYUI_URL)}/system_stats")
-            comfyui_ok = response.status_code == 200
-    except httpx.HTTPError:
-        comfyui_ok = False
+    url = get_comfyui_url()
+    comfyui_ok, error = check_comfyui()
 
     return {
         "status": "ok",
+        "version": BUILD_VERSION,
         "brand": BRAND,
-        "comfyui_url": os.getenv("COMFYUI_URL", COMFYUI_URL),
+        "comfyui_url": url,
         "comfyui_connected": comfyui_ok,
+        "comfyui_error": error,
     }
 
 
@@ -59,6 +81,18 @@ async def generate(
 
     if width < 256 or height < 256 or width > 2048 or height > 2048:
         raise HTTPException(status_code=400, detail="Width and height must be between 256 and 2048.")
+
+    comfyui_ok, comfyui_error = check_comfyui()
+    if not comfyui_ok:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    f"ComfyUI is not reachable at {get_comfyui_url()}. "
+                    f"Start ComfyUI on port 8188 or set COMFYUI_URL. Error: {comfyui_error}"
+                )
+            },
+        )
 
     image_bytes = None
     filename = "input.png"
@@ -80,8 +114,18 @@ async def generate(
             width=width,
             height=height,
         )
+    except TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"detail": "Generation timed out. ComfyUI may still be loading models — try again."},
+        )
+    except httpx.HTTPError as exc:
+        return JSONResponse(
+            status_code=502,
+            content={"detail": f"Cannot reach ComfyUI at {get_comfyui_url()}: {exc}"},
+        )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return JSONResponse(status_code=502, content={"detail": str(exc)})
 
     mode = "img2img" if image_bytes else "txt2img"
     return Response(
@@ -90,6 +134,5 @@ async def generate(
         headers={
             "X-Seed": str(used_seed),
             "X-Mode": mode,
-            "X-Prompt": prompt.strip()[:200],
         },
     )

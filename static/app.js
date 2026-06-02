@@ -1,67 +1,59 @@
 const form = document.getElementById("generate-form");
+const modeButtons = document.querySelectorAll(".mode-btn");
+const imageBlock = document.getElementById("image-block");
+const sizeBlock = document.getElementById("size-block");
+const denoiseBlock = document.getElementById("denoise-block");
 const imageInput = document.getElementById("image");
-const imageSection = document.getElementById("image-section");
-const sizeSection = document.getElementById("size-section");
-const denoiseField = document.getElementById("denoise-field");
-const dropzone = document.getElementById("dropzone");
-const dropzonePlaceholder = document.getElementById("dropzone-placeholder");
 const preview = document.getElementById("preview");
+const uploadPlaceholder = document.getElementById("upload-placeholder");
 const clearImageBtn = document.getElementById("clear-image");
-const statusEl = document.getElementById("status");
 const submitBtn = document.getElementById("submit-btn");
-const btnLabel = submitBtn.querySelector(".btn-label");
-const spinner = submitBtn.querySelector(".spinner");
+const btnText = document.getElementById("btn-text");
+const btnSpinner = document.getElementById("btn-spinner");
 const regenerateBtn = document.getElementById("regenerate-btn");
-const resultImg = document.getElementById("result");
-const resultEmpty = document.getElementById("result-empty");
-const resultView = document.getElementById("result-view");
-const compareView = document.getElementById("compare-view");
-const compareInput = document.getElementById("compare-input");
-const compareOutput = document.getElementById("compare-output");
-const metaBar = document.getElementById("meta-bar");
-const seedInfo = document.getElementById("seed-info");
-const modeInfo = document.getElementById("mode-info");
-const timeInfo = document.getElementById("time-info");
-const downloadLink = document.getElementById("download-link");
-const fullscreenBtn = document.getElementById("fullscreen-btn");
-const fullscreenDialog = document.getElementById("fullscreen-dialog");
-const fullscreenImage = document.getElementById("fullscreen-image");
-const closeFullscreen = document.getElementById("close-fullscreen");
+const statusEl = document.getElementById("status");
 const connectionBadge = document.getElementById("connection-badge");
-const modeTabs = document.querySelectorAll(".mode-tab");
-const presetSelect = document.getElementById("preset-select");
-const randomSeedBtn = document.getElementById("random-seed");
+const connectionDetail = document.getElementById("connection-detail");
+const outputEmpty = document.getElementById("output-empty");
+const outputLoading = document.getElementById("output-loading");
+const outputResult = document.getElementById("output-result");
+const resultImage = document.getElementById("result-image");
+const resultMeta = document.getElementById("result-meta");
+const elapsedEl = document.getElementById("elapsed");
+const downloadLink = document.getElementById("download-link");
 const copySeedBtn = document.getElementById("copy-seed");
 const seedInput = document.getElementById("seed");
 const denoiseInput = document.getElementById("denoise");
 const denoiseValue = document.getElementById("denoise-value");
+const presetSelect = document.getElementById("preset-select");
+const randomSeedBtn = document.getElementById("random-seed");
 const widthInput = document.getElementById("width");
 const heightInput = document.getElementById("height");
-const sizeChips = document.querySelectorAll(".chip");
-const historyGrid = document.getElementById("history-grid");
+const historyBlock = document.getElementById("history-block");
+const historyList = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
 
 let currentMode = "txt2img";
-let lastSeed = null;
-let lastPrompt = null;
-let lastResultUrl = null;
 let previewUrl = null;
-let sessionHistory = [];
+let lastSeed = null;
+let lastResultUrl = null;
+let history = [];
+let elapsedTimer = null;
+let comfyuiConnected = false;
 
 function setMode(mode) {
   currentMode = mode;
-  modeTabs.forEach((tab) => {
-    const active = tab.dataset.mode === mode;
-    tab.classList.toggle("active", active);
-    tab.setAttribute("aria-selected", active ? "true" : "false");
+  const img2img = mode === "img2img";
+
+  modeButtons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
   });
 
-  const isImg2Img = mode === "img2img";
-  imageSection.classList.toggle("hidden", !isImg2Img);
-  sizeSection.classList.toggle("hidden", isImg2Img);
-  denoiseField.classList.toggle("hidden", !isImg2Img);
+  imageBlock.classList.toggle("hidden", !img2img);
+  sizeBlock.classList.toggle("hidden", img2img);
+  denoiseBlock.classList.toggle("hidden", !img2img);
 
-  if (!isImg2Img) {
+  if (!img2img) {
     clearImage();
   }
 }
@@ -73,18 +65,18 @@ function setPreview(file) {
   }
 
   if (!file) {
-    preview.hidden = true;
+    preview.classList.add("hidden");
     preview.removeAttribute("src");
-    dropzonePlaceholder.hidden = false;
-    clearImageBtn.hidden = true;
+    uploadPlaceholder.classList.remove("hidden");
+    clearImageBtn.classList.add("hidden");
     return;
   }
 
   previewUrl = URL.createObjectURL(file);
   preview.src = previewUrl;
-  preview.hidden = false;
-  dropzonePlaceholder.hidden = true;
-  clearImageBtn.hidden = false;
+  preview.classList.remove("hidden");
+  uploadPlaceholder.classList.add("hidden");
+  clearImageBtn.classList.remove("hidden");
 }
 
 function clearImage() {
@@ -92,98 +84,93 @@ function clearImage() {
   setPreview(null);
 }
 
-function randomSeed() {
-  const value = Math.floor(Math.random() * 2 ** 31);
-  seedInput.value = value;
-  return value;
-}
+function setLoading(active) {
+  submitBtn.disabled = active || !comfyuiConnected;
+  regenerateBtn.disabled = active || lastSeed === null;
+  btnSpinner.classList.toggle("hidden", !active);
+  btnText.textContent = active ? "Generating…" : "Generate";
 
-function updateConnectionBadge(connected) {
-  connectionBadge.classList.remove("badge-checking", "badge-online", "badge-offline");
-  if (connected) {
-    connectionBadge.textContent = "ComfyUI connected";
-    connectionBadge.classList.add("badge-online");
+  if (active) {
+    outputEmpty.classList.add("hidden");
+    outputResult.classList.add("hidden");
+    outputLoading.classList.remove("hidden");
   } else {
-    connectionBadge.textContent = "ComfyUI offline";
-    connectionBadge.classList.add("badge-offline");
+    outputLoading.classList.add("hidden");
   }
 }
 
-async function checkHealth() {
+function startElapsedTimer() {
+  const start = Date.now();
+  elapsedEl.textContent = "0s";
+  elapsedTimer = setInterval(() => {
+    const seconds = Math.floor((Date.now() - start) / 1000);
+    elapsedEl.textContent = `${seconds}s`;
+  }, 1000);
+}
+
+function stopElapsedTimer() {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+}
+
+async function parseError(response) {
+  const text = await response.text();
   try {
-    const response = await fetch("/health");
-    const data = await response.json();
-    updateConnectionBadge(data.comfyui_connected);
+    const data = JSON.parse(text);
+    if (data.detail) {
+      return typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+    }
   } catch {
-    updateConnectionBadge(false);
+    // plain text error
   }
+  return text || `Request failed (${response.status})`;
 }
 
-function setLoading(isLoading, message = "") {
-  submitBtn.disabled = isLoading;
-  regenerateBtn.disabled = isLoading || !lastSeed;
-  spinner.hidden = !isLoading;
-  btnLabel.textContent = isLoading ? "Generating…" : "Generate";
-  if (message) {
-    statusEl.textContent = message;
-  }
+function showResult({ url, seed, mode, prompt, seconds }) {
+  lastResultUrl = url;
+  lastSeed = seed;
+
+  outputEmpty.classList.add("hidden");
+  outputLoading.classList.add("hidden");
+  outputResult.classList.remove("hidden");
+
+  resultImage.src = url;
+  resultMeta.textContent = `${mode === "img2img" ? "Image to Image" : "Text to Image"} · Seed ${seed} · ${seconds.toFixed(1)}s`;
+
+  downloadLink.href = url;
+  downloadLink.classList.remove("hidden");
+  copySeedBtn.classList.remove("hidden");
+  regenerateBtn.disabled = false;
+  seedInput.value = seed;
 }
 
 function renderHistory() {
-  if (!sessionHistory.length) {
-    historyGrid.innerHTML = '<p class="history-empty">No generations yet.</p>';
+  if (!history.length) {
+    historyBlock.classList.add("hidden");
+    historyList.innerHTML = "";
     return;
   }
 
-  historyGrid.innerHTML = "";
-  sessionHistory.forEach((item) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "history-item";
-    card.innerHTML = `
-      <img src="${item.url}" alt="History item" />
-      <div class="history-item-meta">${item.prompt.slice(0, 40)}</div>
-    `;
-    card.addEventListener("click", () => showResult(item));
-    historyGrid.appendChild(card);
+  historyBlock.classList.remove("hidden");
+  historyList.innerHTML = "";
+
+  history.forEach((item, index) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "history-item";
+    btn.title = item.prompt;
+    btn.innerHTML = `<img src="${item.url}" alt="History ${index + 1}" />`;
+    btn.addEventListener("click", () => showResult(item));
+    historyList.appendChild(btn);
   });
 }
 
-function showResult({ url, seed, mode, prompt, elapsed, inputUrl }) {
-  lastResultUrl = url;
-  lastSeed = seed;
-  lastPrompt = prompt;
-
-  resultEmpty.hidden = true;
-  resultImg.hidden = false;
-  resultImg.src = url;
-  downloadLink.href = url;
-  downloadLink.hidden = false;
-  fullscreenBtn.hidden = false;
-  regenerateBtn.disabled = false;
-
-  const showCompare = mode === "img2img" && inputUrl;
-  compareView.classList.toggle("hidden", !showCompare);
-  resultView.classList.toggle("hidden", showCompare);
-
-  if (showCompare) {
-    compareInput.src = inputUrl;
-    compareOutput.src = url;
-  }
-
-  seedInfo.textContent = `Seed ${seed}`;
-  modeInfo.textContent = mode === "img2img" ? "Image to Image" : "Text to Image";
-  timeInfo.textContent = `${elapsed.toFixed(1)}s`;
-  metaBar.hidden = false;
-
-  seedInput.value = seed;
-  copySeedBtn.hidden = false;
-}
-
-function addToHistory(entry) {
-  sessionHistory.unshift(entry);
-  if (sessionHistory.length > 16) {
-    const removed = sessionHistory.pop();
+function addHistory(item) {
+  history.unshift(item);
+  if (history.length > 12) {
+    const removed = history.pop();
     if (removed?.url) {
       URL.revokeObjectURL(removed.url);
     }
@@ -191,104 +178,117 @@ function addToHistory(entry) {
   renderHistory();
 }
 
-async function runGeneration(useLastSeed = false) {
+async function checkHealth() {
+  connectionBadge.className = "badge wait";
+  connectionBadge.textContent = "Checking…";
+
+  try {
+    const response = await fetch("/health", { cache: "no-store" });
+    const data = await response.json();
+    comfyuiConnected = Boolean(data.comfyui_connected);
+
+    const version = data.version ? ` · v${data.version}` : "";
+
+    if (data.comfyui_connected) {
+      connectionBadge.className = "badge ok";
+      connectionBadge.textContent = "ComfyUI connected";
+      connectionDetail.textContent = `${data.comfyui_url}${version}`;
+      submitBtn.disabled = false;
+    } else {
+      connectionBadge.className = "badge err";
+      connectionBadge.textContent = "ComfyUI offline";
+      connectionDetail.textContent = data.comfyui_error
+        ? `${data.comfyui_url}${version} — ${data.comfyui_error}`
+        : `${data.comfyui_url}${version}`;
+      submitBtn.disabled = true;
+      statusEl.textContent = "Start ComfyUI on port 8188 on the GPU server, then click Generate.";
+      statusEl.classList.add("error");
+    }
+  } catch {
+    comfyuiConnected = false;
+    connectionBadge.className = "badge err";
+    connectionBadge.textContent = "Server unreachable";
+    connectionDetail.textContent = "Cannot reach the Z Image Turbo API on port 8189.";
+    submitBtn.disabled = true;
+  }
+}
+
+async function runGeneration(reuseSeed = false) {
   statusEl.classList.remove("error");
 
+  if (!comfyuiConnected) {
+    await checkHealth();
+    if (!comfyuiConnected) {
+      statusEl.textContent = "ComfyUI is offline. Start it on the GPU server at port 8188.";
+      statusEl.classList.add("error");
+      return;
+    }
+  }
+
   if (currentMode === "img2img" && !imageInput.files?.[0]) {
-    statusEl.textContent = "Please upload a source image for Image to Image mode.";
+    statusEl.textContent = "Upload a source image for Image to Image mode.";
     statusEl.classList.add("error");
     return;
   }
 
   const started = performance.now();
-  setLoading(true, "Sending to ComfyUI…");
+  setLoading(true);
+  startElapsedTimer();
+  statusEl.textContent = "Sending job to ComfyUI on the GPU server…";
 
   const formData = new FormData(form);
+
   if (currentMode === "txt2img") {
     formData.delete("image");
   }
 
   if (!formData.get("seed")) {
     formData.delete("seed");
-  } else if (useLastSeed && lastSeed !== null) {
+  } else if (reuseSeed && lastSeed !== null) {
     formData.set("seed", String(lastSeed));
   }
 
   try {
-    const response = await fetch("/generate", {
-      method: "POST",
-      body: formData,
-    });
+    const response = await fetch("/generate", { method: "POST", body: formData });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || "Generation failed.");
+      throw new Error(await parseError(response));
     }
 
     const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const elapsed = (performance.now() - started) / 1000;
+    const url = URL.createObjectURL(blob);
+    const seconds = (performance.now() - started) / 1000;
     const seed = response.headers.get("X-Seed");
     const mode = response.headers.get("X-Mode") || currentMode;
     const prompt = formData.get("prompt") || "";
 
-    showResult({
-      url: objectUrl,
-      seed,
-      mode,
-      prompt,
-      elapsed,
-      inputUrl: previewUrl,
-    });
-
-    addToHistory({
-      url: objectUrl,
-      seed,
-      mode,
-      prompt,
-      elapsed,
-      inputUrl: previewUrl,
-    });
-
-    statusEl.textContent = `Done in ${elapsed.toFixed(1)}s.`;
+    const item = { url, seed, mode, prompt, seconds };
+    showResult(item);
+    addHistory(item);
+    statusEl.textContent = `Done in ${seconds.toFixed(1)}s.`;
   } catch (error) {
+    outputResult.classList.add("hidden");
+    outputEmpty.classList.remove("hidden");
     statusEl.textContent = error.message;
     statusEl.classList.add("error");
   } finally {
+    stopElapsedTimer();
     setLoading(false);
   }
 }
 
-modeTabs.forEach((tab) => {
-  tab.addEventListener("click", () => setMode(tab.dataset.mode));
-});
-
-dropzone.addEventListener("dragover", (event) => {
-  event.preventDefault();
-  dropzone.classList.add("dragover");
-});
-
-dropzone.addEventListener("dragleave", () => {
-  dropzone.classList.remove("dragover");
-});
-
-dropzone.addEventListener("drop", (event) => {
-  event.preventDefault();
-  dropzone.classList.remove("dragover");
-  const file = event.dataTransfer.files?.[0];
-  if (file && file.type.startsWith("image/")) {
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    imageInput.files = transfer.files;
-    setPreview(file);
-  }
+modeButtons.forEach((btn) => {
+  btn.addEventListener("click", () => setMode(btn.dataset.mode));
 });
 
 imageInput.addEventListener("change", () => {
   setPreview(imageInput.files?.[0] || null);
 });
 
-clearImageBtn.addEventListener("click", clearImage);
+clearImageBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  clearImage();
+});
 
 presetSelect.addEventListener("change", () => {
   if (presetSelect.value) {
@@ -297,23 +297,29 @@ presetSelect.addEventListener("change", () => {
   }
 });
 
-randomSeedBtn.addEventListener("click", randomSeed);
+randomSeedBtn.addEventListener("click", () => {
+  seedInput.value = Math.floor(Math.random() * 2 ** 31);
+});
 
 copySeedBtn.addEventListener("click", async () => {
   if (!seedInput.value) return;
-  await navigator.clipboard.writeText(seedInput.value);
-  statusEl.textContent = "Seed copied to clipboard.";
+  try {
+    await navigator.clipboard.writeText(seedInput.value);
+    statusEl.textContent = "Seed copied.";
+  } catch {
+    statusEl.textContent = "Could not copy seed.";
+  }
 });
 
 denoiseInput.addEventListener("input", () => {
   denoiseValue.textContent = Number(denoiseInput.value).toFixed(2);
 });
 
-sizeChips.forEach((chip) => {
+document.querySelectorAll(".chip").forEach((chip) => {
   chip.addEventListener("click", () => {
     widthInput.value = chip.dataset.w;
     heightInput.value = chip.dataset.h;
-    sizeChips.forEach((c) => c.classList.toggle("active", c === chip));
+    document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c === chip));
   });
 });
 
@@ -322,29 +328,11 @@ form.addEventListener("submit", async (event) => {
   await runGeneration(false);
 });
 
-regenerateBtn.addEventListener("click", async () => {
-  if (lastSeed !== null) {
-    seedInput.value = lastSeed;
-  }
-  await runGeneration(true);
-});
-
-fullscreenBtn.addEventListener("click", () => {
-  if (!lastResultUrl) return;
-  fullscreenImage.src = lastResultUrl;
-  fullscreenDialog.showModal();
-});
-
-closeFullscreen.addEventListener("click", () => fullscreenDialog.close());
-fullscreenDialog.addEventListener("click", (event) => {
-  if (event.target === fullscreenDialog) {
-    fullscreenDialog.close();
-  }
-});
+regenerateBtn.addEventListener("click", () => runGeneration(true));
 
 clearHistoryBtn.addEventListener("click", () => {
-  sessionHistory.forEach((item) => URL.revokeObjectURL(item.url));
-  sessionHistory = [];
+  history.forEach((item) => URL.revokeObjectURL(item.url));
+  history = [];
   renderHistory();
 });
 

@@ -14,6 +14,27 @@ POLL_INTERVAL = 0.5
 TIMEOUT_SECONDS = 600
 
 
+def get_comfyui_url() -> str:
+    return os.getenv("COMFYUI_URL", COMFYUI_URL)
+
+
+def check_comfyui(timeout: float = 10.0) -> tuple[bool, str | None]:
+    url = get_comfyui_url()
+    endpoints = ("/system_stats", "/queue", "/")
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            for path in endpoints:
+                try:
+                    response = client.get(f"{url}{path}")
+                    if response.status_code == 200:
+                        return True, None
+                except httpx.HTTPError:
+                    continue
+        return False, f"No response from ComfyUI at {url}"
+    except httpx.HTTPError as exc:
+        return False, str(exc)
+
+
 def load_workflow(name: str) -> dict:
     path = BASE_DIR / name
     with path.open(encoding="utf-8") as f:
@@ -21,9 +42,10 @@ def load_workflow(name: str) -> dict:
 
 
 def upload_image(client: httpx.Client, image_bytes: bytes, filename: str) -> str:
+    url = get_comfyui_url()
     files = {"image": (filename, image_bytes, "application/octet-stream")}
     data = {"overwrite": "true"}
-    response = client.post(f"{COMFYUI_URL}/upload/image", files=files, data=data)
+    response = client.post(f"{url}/upload/image", files=files, data=data)
     response.raise_for_status()
     return response.json()["name"]
 
@@ -58,8 +80,9 @@ def build_prompt(
 
 
 def queue_prompt(client: httpx.Client, workflow: dict) -> str:
+    url = get_comfyui_url()
     payload = {"prompt": workflow, "client_id": str(uuid.uuid4())}
-    response = client.post(f"{COMFYUI_URL}/prompt", json=payload)
+    response = client.post(f"{url}/prompt", json=payload)
     response.raise_for_status()
     body = response.json()
     if "error" in body:
@@ -72,7 +95,7 @@ def queue_prompt(client: httpx.Client, workflow: dict) -> str:
 def wait_for_result(client: httpx.Client, prompt_id: str) -> list[dict]:
     deadline = time.time() + TIMEOUT_SECONDS
     while time.time() < deadline:
-        response = client.get(f"{COMFYUI_URL}/history/{prompt_id}")
+        response = client.get(f"{get_comfyui_url()}/history/{prompt_id}")
         response.raise_for_status()
         history = response.json()
         if prompt_id in history:
@@ -94,7 +117,7 @@ def fetch_image(client: httpx.Client, image_info: dict) -> bytes:
         "subfolder": image_info.get("subfolder", ""),
         "type": image_info.get("type", "output"),
     }
-    response = client.get(f"{COMFYUI_URL}/view", params=params)
+    response = client.get(f"{get_comfyui_url()}/view", params=params)
     response.raise_for_status()
     return response.content
 
@@ -114,7 +137,7 @@ def generate_image(
     workflow_name = "workflow_img2img.json" if image_bytes else "workflow_txt2img.json"
     workflow = load_workflow(workflow_name)
 
-    with httpx.Client(timeout=120.0) as client:
+    with httpx.Client(timeout=600.0) as client:
         input_filename = None
         if image_bytes:
             input_filename = upload_image(client, image_bytes, filename)
