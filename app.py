@@ -1,13 +1,20 @@
 import os
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from comfy_client import COMFYUI_URL, generate_image
 
-app = FastAPI(title="Z Image Turbo UI")
+BRAND = {
+    "studio": "Binyan Studios",
+    "product": "Z Image Turbo",
+    "tagline": "AI image generation powered by ComfyUI",
+}
+
+app = FastAPI(title=f"{BRAND['studio']} — {BRAND['product']}")
 STATIC_DIR = Path(__file__).parent / "static"
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -20,7 +27,20 @@ async def index():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "comfyui_url": os.getenv("COMFYUI_URL", COMFYUI_URL)}
+    comfyui_ok = False
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{os.getenv('COMFYUI_URL', COMFYUI_URL)}/system_stats")
+            comfyui_ok = response.status_code == 200
+    except httpx.HTTPError:
+        comfyui_ok = False
+
+    return {
+        "status": "ok",
+        "brand": BRAND,
+        "comfyui_url": os.getenv("COMFYUI_URL", COMFYUI_URL),
+        "comfyui_connected": comfyui_ok,
+    }
 
 
 @app.post("/generate")
@@ -31,9 +51,14 @@ async def generate(
     steps: int = Form(8),
     cfg: float = Form(1.0),
     denoise: float = Form(0.75),
+    width: int = Form(1024),
+    height: int = Form(1024),
 ):
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt is required.")
+
+    if width < 256 or height < 256 or width > 2048 or height > 2048:
+        raise HTTPException(status_code=400, detail="Width and height must be between 256 and 2048.")
 
     image_bytes = None
     filename = "input.png"
@@ -52,12 +77,19 @@ async def generate(
             steps=steps,
             cfg=cfg,
             denoise=denoise if image_bytes else 1.0,
+            width=width,
+            height=height,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    mode = "img2img" if image_bytes else "txt2img"
     return Response(
         content=result_bytes,
         media_type="image/png",
-        headers={"X-Seed": str(used_seed)},
+        headers={
+            "X-Seed": str(used_seed),
+            "X-Mode": mode,
+            "X-Prompt": prompt.strip()[:200],
+        },
     )

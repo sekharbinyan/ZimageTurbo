@@ -36,6 +36,8 @@ def build_prompt(
     steps: int,
     cfg: float,
     denoise: float,
+    width: int = 1024,
+    height: int = 1024,
     input_filename: str | None = None,
 ) -> dict:
     graph = copy.deepcopy(workflow)
@@ -44,6 +46,10 @@ def build_prompt(
     graph["57:3"]["inputs"]["steps"] = steps
     graph["57:3"]["inputs"]["cfg"] = cfg
     graph["57:3"]["inputs"]["denoise"] = denoise
+
+    if "57:13" in graph:
+        graph["57:13"]["inputs"]["width"] = width
+        graph["57:13"]["inputs"]["height"] = height
 
     if input_filename is not None:
         graph["10"]["inputs"]["image"] = input_filename
@@ -102,6 +108,8 @@ def generate_image(
     steps: int,
     cfg: float,
     denoise: float,
+    width: int = 1024,
+    height: int = 1024,
 ) -> tuple[bytes, int]:
     workflow_name = "workflow_img2img.json" if image_bytes else "workflow_txt2img.json"
     workflow = load_workflow(workflow_name)
@@ -118,6 +126,8 @@ def generate_image(
             steps=steps,
             cfg=cfg,
             denoise=denoise,
+            width=width,
+            height=height,
             input_filename=input_filename,
         )
         prompt_id = queue_prompt(client, graph)

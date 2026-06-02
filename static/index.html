@@ -3,68 +3,188 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Z Image Turbo</title>
+  <title>Binyan Studios — Z Image Turbo</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>Z Image Turbo</h1>
-      <p>Upload an image, write a prompt, and generate with ComfyUI.</p>
-    </header>
+  <div class="page-bg"></div>
 
-    <form id="generate-form" class="panel">
-      <section class="field">
-        <label for="image">Input image (optional for text-to-image)</label>
-        <div class="dropzone" id="dropzone">
-          <input type="file" id="image" name="image" accept="image/*" />
-          <p>Drop an image here or click to browse</p>
-          <img id="preview" alt="Preview" hidden />
-        </div>
-      </section>
+  <header class="site-header">
+    <div class="brand-lockup">
+      <img src="/static/logo.svg" alt="Binyan Studios" class="brand-logo" />
+      <div>
+        <p class="brand-studio">Binyan Studios</p>
+        <h1>Z Image Turbo</h1>
+      </div>
+    </div>
+    <div class="header-meta">
+      <span id="connection-badge" class="badge badge-checking">Checking ComfyUI…</span>
+      <p class="tagline">AI image generation powered by ComfyUI</p>
+    </div>
+  </header>
 
-      <section class="field">
-        <label for="prompt">Prompt</label>
-        <textarea
-          id="prompt"
-          name="prompt"
-          rows="4"
-          placeholder="Describe what you want to generate..."
-          required
-        >Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.</textarea>
-      </section>
+  <main class="layout">
+    <section class="panel controls-panel">
+      <div class="mode-tabs" role="tablist">
+        <button type="button" class="mode-tab active" data-mode="txt2img" role="tab" aria-selected="true">Text to Image</button>
+        <button type="button" class="mode-tab" data-mode="img2img" role="tab" aria-selected="false">Image to Image</button>
+      </div>
 
-      <section class="grid">
-        <div class="field">
-          <label for="steps">Steps</label>
-          <input type="number" id="steps" name="steps" value="8" min="1" max="50" />
-        </div>
-        <div class="field">
-          <label for="cfg">CFG</label>
-          <input type="number" id="cfg" name="cfg" value="1" min="0" max="20" step="0.1" />
-        </div>
-        <div class="field">
-          <label for="denoise">Denoise</label>
-          <input type="number" id="denoise" name="denoise" value="0.75" min="0.01" max="1" step="0.01" />
-        </div>
-        <div class="field">
-          <label for="seed">Seed (optional)</label>
-          <input type="number" id="seed" name="seed" placeholder="Random" />
-        </div>
-      </section>
+      <form id="generate-form">
+        <section class="field image-field hidden" id="image-section">
+          <div class="field-header">
+            <label for="image">Source image</label>
+            <button type="button" id="clear-image" class="text-btn" hidden>Remove</button>
+          </div>
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="image" name="image" accept="image/*" />
+            <div class="dropzone-placeholder" id="dropzone-placeholder">
+              <span class="drop-icon">↑</span>
+              <p>Drop an image here or click to browse</p>
+            </div>
+            <img id="preview" alt="Input preview" hidden />
+          </div>
+        </section>
 
-      <button type="submit" id="submit-btn">Generate</button>
-      <p id="status" class="status" aria-live="polite"></p>
-    </form>
+        <section class="field">
+          <div class="field-header">
+            <label for="prompt">Prompt</label>
+            <select id="preset-select" class="preset-select" aria-label="Prompt presets">
+              <option value="">Presets…</option>
+              <option value="Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.">Cinematic portrait</option>
+              <option value="Futuristic city skyline at golden hour, ultra detailed, architectural photography, dramatic clouds.">Futuristic skyline</option>
+              <option value="Product photo of a luxury watch on marble surface, studio lighting, shallow depth of field, commercial quality.">Product shot</option>
+              <option value="Fantasy landscape with floating islands, waterfalls, ethereal mist, concept art style, vibrant colors.">Fantasy landscape</option>
+              <option value="Minimalist interior design, Scandinavian style, natural light, warm wood tones, editorial photography.">Interior design</option>
+            </select>
+          </div>
+          <textarea
+            id="prompt"
+            name="prompt"
+            rows="4"
+            placeholder="Describe what you want to generate…"
+            required
+          >Latina female with thick wavy hair, harbor boats and pastel houses behind. Breezy seaside light, warm tones, cinematic close-up.</textarea>
+        </section>
+
+        <section class="field size-field" id="size-section">
+          <label>Output size</label>
+          <div class="size-row">
+            <div class="size-input">
+              <span>W</span>
+              <input type="number" id="width" name="width" value="1024" min="256" max="2048" step="64" />
+            </div>
+            <div class="size-input">
+              <span>H</span>
+              <input type="number" id="height" name="height" value="1024" min="256" max="2048" step="64" />
+            </div>
+            <div class="size-presets">
+              <button type="button" class="chip" data-w="1024" data-h="1024">1:1</button>
+              <button type="button" class="chip" data-w="1216" data-h="832">3:2</button>
+              <button type="button" class="chip" data-w="832" data-h="1216">2:3</button>
+              <button type="button" class="chip" data-w="1344" data-h="768">16:9</button>
+            </div>
+          </div>
+        </section>
+
+        <details class="advanced">
+          <summary>Advanced settings</summary>
+          <div class="grid">
+            <div class="field">
+              <label for="steps">Steps</label>
+              <input type="number" id="steps" name="steps" value="8" min="1" max="50" />
+            </div>
+            <div class="field">
+              <label for="cfg">CFG</label>
+              <input type="number" id="cfg" name="cfg" value="1" min="0" max="20" step="0.1" />
+            </div>
+            <div class="field" id="denoise-field">
+              <label for="denoise">Denoise</label>
+              <input type="range" id="denoise" name="denoise" value="0.75" min="0.01" max="1" step="0.01" />
+              <span id="denoise-value" class="range-value">0.75</span>
+            </div>
+            <div class="field">
+              <label for="seed">Seed</label>
+              <div class="seed-row">
+                <input type="number" id="seed" name="seed" placeholder="Random" />
+                <button type="button" id="random-seed" class="icon-btn" title="Random seed">🎲</button>
+                <button type="button" id="copy-seed" class="icon-btn" title="Copy seed" hidden>📋</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button type="submit" id="submit-btn" class="btn-primary">
+            <span class="btn-label">Generate</span>
+            <span class="spinner" hidden></span>
+          </button>
+          <button type="button" id="regenerate-btn" class="btn-secondary" disabled>Regenerate</button>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+      </form>
+    </section>
 
     <section class="panel result-panel">
-      <h2>Result</h2>
-      <div id="result-empty" class="empty-state">Generated image will appear here.</div>
-      <img id="result" alt="Generated result" hidden />
-      <p id="seed-info" class="seed-info" hidden></p>
-      <a id="download-link" download="z-image-turbo.png" hidden>Download PNG</a>
+      <div class="panel-header">
+        <h2>Output</h2>
+        <div class="result-actions">
+          <button type="button" id="fullscreen-btn" class="text-btn" hidden>Fullscreen</button>
+          <a id="download-link" class="text-btn" download="binyan-z-image-turbo.png" hidden>Download</a>
+        </div>
+      </div>
+
+      <div id="compare-view" class="compare-view hidden">
+        <figure>
+          <figcaption>Input</figcaption>
+          <img id="compare-input" alt="Input" />
+        </figure>
+        <figure>
+          <figcaption>Output</figcaption>
+          <img id="compare-output" alt="Output" />
+        </figure>
+      </div>
+
+      <div id="result-view">
+        <div id="result-empty" class="empty-state">
+          <img src="/static/logo.svg" alt="" class="empty-logo" />
+          <p>Your generated image will appear here.</p>
+          <span>Powered by Binyan Studios</span>
+        </div>
+        <img id="result" alt="Generated result" hidden />
+      </div>
+
+      <div id="meta-bar" class="meta-bar" hidden>
+        <span id="seed-info"></span>
+        <span id="mode-info"></span>
+        <span id="time-info"></span>
+      </div>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="panel-header">
+        <h2>Session history</h2>
+        <button type="button" id="clear-history" class="text-btn">Clear</button>
+      </div>
+      <p class="history-hint">Recent generations from this browser session.</p>
+      <div id="history-grid" class="history-grid">
+        <p class="history-empty">No generations yet.</p>
+      </div>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <p>© 2026 <strong>Binyan Studios</strong> · Z Image Turbo · Built on ComfyUI</p>
+  </footer>
+
+  <dialog id="fullscreen-dialog">
+    <button type="button" id="close-fullscreen" class="dialog-close" aria-label="Close">×</button>
+    <img id="fullscreen-image" alt="Fullscreen result" />
+  </dialog>
 
   <script src="/static/app.js"></script>
 </body>

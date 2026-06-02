@@ -1,6 +1,17 @@
 # ZimageTurbo
 
-Web interface for the Z Image Turbo ComfyUI workflow. Upload an image, enter a prompt, and receive the generated result.
+**Binyan Studios** web interface for the Z Image Turbo ComfyUI workflow.
+
+Upload an image or write a prompt to generate AI images with a branded studio UI.
+
+## Features
+
+- Binyan Studios branding and dark gold theme
+- Text-to-Image and Image-to-Image modes
+- Prompt presets, aspect ratio shortcuts, and advanced sampler controls
+- ComfyUI connection status indicator
+- Session history, regenerate, fullscreen preview, and seed copy
+- Docker support with UI on port **8189**, ComfyUI on **8188**
 
 ## Prerequisites
 
